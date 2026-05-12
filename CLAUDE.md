@@ -36,6 +36,8 @@ uv run mobilerun run "open Chrome"      # run command on device
 
 ## Architecture
 
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for the full module diagram and index.
+
 ### Multi-Agent Orchestration
 
 `MobileAgent` (`mobilerun/agent/droid/droid_agent.py`) is the top-level `llama-index` `Workflow` that orchestrates everything. It operates in two modes:
