@@ -24,6 +24,7 @@ from llama_index.core.base.llms.types import (
 )
 from llama_index.core.llms.llm import LLM
 from llama_index.core.workflow import Context, StartEvent, StopEvent, Workflow, step
+from mobilerun_core_cli.driver.base import DeviceDisconnectedError
 from opentelemetry import trace
 from pydantic import BaseModel
 
@@ -47,7 +48,6 @@ from mobilerun.app_cards.providers import (
     ServerAppCardProvider,
 )
 from mobilerun.config_manager.prompt_loader import PromptLoader
-from mobilerun.tools.driver.base import DeviceDisconnectedError
 from mobilerun.tools.helpers.images import resize_image_to_max_side_with_grid
 
 if TYPE_CHECKING:
@@ -273,7 +273,7 @@ class ManagerAgent(Workflow):
             last_user_idx = user_indices[-1]
 
             # Add memory to last user message
-            current_memory = (self.shared_state.manager_memory or "").strip()
+            current_memory = (self.shared_state.agent_memory or "").strip()
             if current_memory:
                 messages[last_user_idx].blocks.append(
                     TextBlock(text=f"\n<memory>\n{current_memory}\n</memory>\n")
@@ -524,10 +524,7 @@ class ManagerAgent(Workflow):
         # Update memory (append)
         memory_update = parsed.get("memory", "").strip()
         if memory_update:
-            if self.shared_state.manager_memory:
-                self.shared_state.manager_memory += "\n" + memory_update
-            else:
-                self.shared_state.manager_memory = memory_update
+            self.shared_state.append_memory(memory_update)
 
         # Append assistant response to message history
         self.shared_state.message_history.append(

@@ -1,12 +1,11 @@
 """Config migration system."""
 
-from typing import Dict, Any, List
 import importlib
 import pkgutil
 from pathlib import Path
+from typing import Any, Dict, List
 
-
-CURRENT_VERSION = 5
+CURRENT_VERSION = 6
 
 
 def get_migrations() -> List:

@@ -11,12 +11,14 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional
 
-from mobilerun.tools.driver.base import DeviceDisconnectedError
+from mobilerun_core_cli.driver.base import DeviceDisconnectedError
+
 from mobilerun.tools.ui.state import UIState
 from mobilerun.tools.ui.stealth_state import StealthUIState
 
 if TYPE_CHECKING:
-    from mobilerun.tools.driver.base import DeviceDriver
+    from mobilerun_core_cli.driver.base import DeviceDriver
+
     from mobilerun.tools.filters import TreeFilter
     from mobilerun.tools.formatters import TreeFormatter
 
@@ -126,6 +128,13 @@ class StateProvider:
     """Base class — subclass to support different platforms."""
 
     supported: set[str] = set()
+    # True when raw screenshot pixel coordinates can be sent directly to driver
+    # tap actions without scaling (e.g. Android, where screenshot and input
+    # coords are both device pixels). iOS in normal mode is False — the
+    # screenshot is physical pixels while taps use XCTest points, so a model
+    # picking from the screenshot would tap the wrong location. Screenshot-only
+    # providers handle scaling explicitly via ``coordinate_scale_x/y``.
+    screenshot_matches_input_coords: bool = False
 
     def __init__(self, driver: "DeviceDriver") -> None:
         self.driver = driver
@@ -158,10 +167,16 @@ class AndroidStateProvider(StateProvider):
         self.tree_formatter = tree_formatter
         self.use_normalized = use_normalized
         self._ui_cls = ui_cls or (StealthUIState if stealth else UIState)
+        # Android screenshots and input taps share device-pixel coordinates,
+        # but only when not in normalized mode. ``use_normalized=True`` makes
+        # ``UIState.convert_point`` treat inputs as [0-1000] normalized
+        # coordinates, which is incompatible with picking coordinates off the
+        # screenshot — keep click_at masked in that case.
+        self.screenshot_matches_input_coords = not use_normalized
 
     async def _recover_portal(self) -> None:
         """Restart Portal's accessibility service and TCP socket server."""
-        from mobilerun.tools.driver.android import AndroidDriver
+        from mobilerun_core_cli.driver.android import AndroidDriver
 
         if not isinstance(self.driver, AndroidDriver):
             return
@@ -169,7 +184,7 @@ class AndroidStateProvider(StateProvider):
         if device is None:
             return
 
-        from mobilerun.portal import (
+        from mobilerun_core_cli.portal import (
             PORTAL_PACKAGE_NAME,
             portal_a11y_service,
             portal_content_uri,

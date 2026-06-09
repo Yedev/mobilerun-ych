@@ -28,9 +28,11 @@ from llama_index.core.callbacks import CallbackManager
 from llama_index.core.constants import DEFAULT_TEMPERATURE
 from llama_index.core.llms.callbacks import llm_chat_callback, llm_completion_callback
 from llama_index.core.llms.custom import CustomLLM
+
 from mobilerun.config_manager.credential_paths import ANTHROPIC_OAUTH_CREDENTIAL_PATH
 
-DEFAULT_MODEL = "claude-sonnet-4-6"
+DEFAULT_MODEL = "claude-opus-4-7"
+DEFAULT_MAX_TOKENS = 8192
 DEFAULT_API_BASE = "https://api.anthropic.com"
 DEFAULT_TOKEN_URL = "https://platform.claude.com/v1/oauth/token"
 DEFAULT_AUTHORIZE_URL = "https://platform.claude.com/oauth/authorize"
@@ -113,7 +115,7 @@ class AnthropicOAuthLLM(CustomLLM):
     """Anthropic OAuth-backed LLM using Claude subscription OAuth tokens."""
 
     model: str = Field(default=DEFAULT_MODEL, description="Anthropic model id.")
-    max_tokens: Optional[int] = Field(default=None, gt=0)
+    max_tokens: Optional[int] = Field(default=DEFAULT_MAX_TOKENS, gt=0)
     temperature: float = Field(default=DEFAULT_TEMPERATURE, ge=0.0, le=2.0)
     timeout: float = Field(default=30.0, gt=0)
 
@@ -154,7 +156,7 @@ class AnthropicOAuthLLM(CustomLLM):
         self,
         model: str = DEFAULT_MODEL,
         *,
-        max_tokens: Optional[int] = None,
+        max_tokens: Optional[int] = DEFAULT_MAX_TOKENS,
         temperature: float = DEFAULT_TEMPERATURE,
         timeout: float = 30.0,
         access_token: Optional[str] = None,
@@ -598,14 +600,14 @@ class AnthropicOAuthLLM(CustomLLM):
                         if attempt == 0:
                             print("No code entered. Try again.")
                             continue
-                        raise RuntimeError("Login failed.")
+                        raise RuntimeError("Login failed.") from None
                     try:
                         code = _normalize_manual_code(raw, state)
                     except Exception:  # noqa: BLE001
                         if attempt == 0:
                             print("Invalid code. Try again.")
                             continue
-                        raise RuntimeError("Login failed.")
+                        raise RuntimeError("Login failed.") from None
                     if code:
                         return self._exchange_authorization_code(
                             code=code,
@@ -698,6 +700,16 @@ class AnthropicOAuthLLM(CustomLLM):
             return False
         return not model_id.startswith("claude-haiku")
 
+    @staticmethod
+    def _supports_temperature(model_id: str) -> bool:
+        """Anthropic deprecated `temperature` on the Claude 4 Opus family.
+
+        Sending it returns 400 "`temperature` is deprecated for this model."
+        Callers that explicitly want to override this can still pass
+        `temperature` via `additional_kwargs` or per-call kwargs.
+        """
+        return not model_id.startswith("claude-opus-4")
+
     def _system_blocks(
         self, user_system_lines: Sequence[str], model_id: str
     ) -> list[dict[str, str]]:
@@ -728,9 +740,10 @@ class AnthropicOAuthLLM(CustomLLM):
 
         payload: Dict[str, Any] = {
             "model": self.model,
-            "temperature": self.temperature,
             "messages": provider_messages,
         }
+        if self._supports_temperature(self.model):
+            payload["temperature"] = self.temperature
         if self.max_tokens is not None:
             payload["max_tokens"] = self.max_tokens
         system_blocks = self._system_blocks(system_lines, self.model)

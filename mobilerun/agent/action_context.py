@@ -9,9 +9,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
+    from mobilerun_core_cli.driver.base import DeviceDriver
+
     from mobilerun.agent.droid.state import MobileAgentState
     from mobilerun.credential_manager import CredentialManager
-    from mobilerun.tools.driver.base import DeviceDriver
+    from mobilerun.macro.recorder import MacroRecorder
     from mobilerun.tools.ui.provider import StateProvider
     from mobilerun.tools.ui.state import UIState
 
@@ -28,6 +30,7 @@ class ActionContext:
         app_opener_llm=None,
         credential_manager: "Optional[CredentialManager]" = None,
         streaming: bool = False,
+        macro_recorder: "Optional[MacroRecorder]" = None,
     ) -> None:
         self.driver = driver
         self.ui = ui  # refreshed each step before tool execution
@@ -36,3 +39,4 @@ class ActionContext:
         self.app_opener_llm = app_opener_llm
         self.credential_manager = credential_manager
         self.streaming = streaming
+        self.macro_recorder = macro_recorder

@@ -16,9 +16,13 @@ This guide will help you get Mobilerun installed and running quickly, controllin
 
 ### Prerequisites
 
+<Warning>
+**Python 3.14 is not yet supported.** Installing Mobilerun on Python 3.14 will silently fall back to an older version (e.g. 0.3.9) due to a dependency that does not yet support Python 3.14. Use Python 3.11, 3.12, or 3.13.
+</Warning>
+
 Before installing Mobilerun, ensure you have:
 
-1. **Python 3.11-3.13** installed on your system
+1. **Python 3.11, 3.12, or 3.13** installed on your system
 2. [Android Debug Bridge (adb)](https://developer.android.com/studio/releases/platform-tools) installed and configured
 3. **Android device** with:
    - [Developer options enabled](https://developer.android.com/studio/debug/dev-options)
@@ -122,7 +126,7 @@ mobilerun run "Find a contact named John and send him an email" --reasoning
 
 **Common CLI flags:**
 - `--provider` - LLM provider (GoogleGenAI, OpenAI, Anthropic, etc.)
-- `--model` - Model name (gemini-3.1-flash-lite-preview, gpt-4o, etc.)
+- `--model` - Model name (gemini-3.1-flash-lite, gpt-4o, etc.)
 - `--vision` - Enable screenshot processing
 - `--reasoning` - Enable multi-agent planning mode
 - `--steps N` - Maximum execution steps (default: 15)

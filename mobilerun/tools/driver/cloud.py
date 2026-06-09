@@ -9,10 +9,9 @@ from __future__ import annotations
 import logging
 from typing import Any, Awaitable, Dict, List, Optional, TypeVar
 
+from mobilerun_core_cli.driver.base import DeviceDisconnectedError, DeviceDriver
 from mobilerun_sdk import AsyncMobilerun
 from mobilerun_sdk._exceptions import APIConnectionError, APITimeoutError, ConflictError
-
-from mobilerun.tools.driver.base import DeviceDisconnectedError, DeviceDriver
 
 logger = logging.getLogger("mobilerun")
 
@@ -230,7 +229,28 @@ class CloudDriver(DeviceDriver):
         response = await self._call(
             self._client.devices.state.ui(self.device_id, **self._display_kw)
         )
-        return response.model_dump()
+        data = response.model_dump()
+        self._ensure_screen_bounds(data)
+        return data
+
+    @staticmethod
+    def _ensure_screen_bounds(data: Dict[str, Any]) -> None:
+        """Backfill screen size from the root node when the cloud omits it.
+
+        Cloud state can report ``screen_bounds`` as ``{width: 0, height: 0}``,
+        which makes screen-intersection filtering drop every element. Derive
+        the real size from the root a11y node's bounds instead.
+        """
+        ctx = data.get("device_context") or {}
+        bounds = ctx.get("screen_bounds") or {}
+        if bounds.get("width") and bounds.get("height"):
+            return
+        root_bounds = (data.get("a11y_tree") or {}).get("boundsInScreen") or {}
+        width = root_bounds.get("right", 0) - root_bounds.get("left", 0)
+        height = root_bounds.get("bottom", 0) - root_bounds.get("top", 0)
+        if width > 0 and height > 0:
+            ctx["screen_bounds"] = {"width": width, "height": height}
+            data["device_context"] = ctx
 
     async def get_date(self) -> str:
         return await self._call(

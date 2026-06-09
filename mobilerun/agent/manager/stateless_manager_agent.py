@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Optional, Type
 
 from llama_index.core.llms.llm import LLM
 from llama_index.core.workflow import Context, StartEvent, StopEvent, Workflow, step
+from mobilerun_core_cli.driver.base import DeviceDisconnectedError
 from opentelemetry import trace
 from pydantic import BaseModel
 
@@ -25,7 +26,6 @@ from mobilerun.agent.utils.inference import acall_with_retries
 from mobilerun.agent.utils.prompt_resolver import PromptResolver
 from mobilerun.agent.utils.tracing_setup import record_langfuse_screenshot
 from mobilerun.config_manager.prompt_loader import PromptLoader
-from mobilerun.tools.driver.base import DeviceDisconnectedError
 from mobilerun.tools.helpers.images import resize_image_to_max_side_with_grid
 
 if TYPE_CHECKING:
@@ -95,7 +95,7 @@ class StatelessManagerAgent(Workflow):
             "device_date": self.shared_state.device_date,
             "previous_plan": self.shared_state.previous_plan,
             "previous_state": self.shared_state.previous_formatted_device_state,
-            "memory": self.shared_state.manager_memory,
+            "memory": self.shared_state.agent_memory,
             "last_thought": self.shared_state.last_thought,
             "progress_summary": self.shared_state.progress_summary,
             "action_history": self._build_action_history(),
@@ -273,10 +273,7 @@ class StatelessManagerAgent(Workflow):
 
         memory_update = parsed.get("memory", "").strip()
         if memory_update:
-            if self.shared_state.manager_memory:
-                self.shared_state.manager_memory += "\n" + memory_update
-            else:
-                self.shared_state.manager_memory = memory_update
+            self.shared_state.append_memory(memory_update)
 
         self.shared_state.plan = parsed["plan"]
         self.shared_state.current_subgoal = parsed["current_subgoal"]
